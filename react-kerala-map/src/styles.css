@@ -1,0 +1,309 @@
+/* react-kerala-map styles — all classes are prefixed with `klm-` */
+
+.klm-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 480px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #111;
+}
+
+.klm-map {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  background: #f5f5f5;
+}
+
+/* ---------------------------------------------------------------
+   TOOLTIPS / POPUPS
+   --------------------------------------------------------------- */
+
+.klm-tooltip {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  color: #111;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+}
+
+.leaflet-tooltip-top::before,
+.leaflet-tooltip-bottom::before,
+.leaflet-tooltip-left::before,
+.leaflet-tooltip-right::before {
+  display: none;
+}
+
+.klm-popup {
+  font-size: 14px;
+  line-height: 1.45;
+  min-width: 200px;
+}
+
+.klm-popup__title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.klm-popup__subtitle {
+  color: #666;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.klm-popup__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  border-bottom: 1px dotted #e5e5e5;
+}
+
+.klm-popup__row:last-child {
+  border-bottom: none;
+}
+
+.klm-popup__label {
+  color: #555;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------
+   OVERLAYS
+   --------------------------------------------------------------- */
+
+.klm-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 15px;
+  text-align: center;
+  padding: 20px;
+}
+
+.klm-overlay--error {
+  background: rgba(255, 255, 255, 0.95);
+  color: #b3261e;
+}
+
+.klm-overlay__detail {
+  font-size: 12px;
+  color: #666;
+  max-width: 480px;
+  word-break: break-word;
+}
+
+/* ---------------------------------------------------------------
+   BROWSE SIDEBAR (desktop)
+   --------------------------------------------------------------- */
+
+.klm-sidebar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  width: min(300px, calc(100% - 24px));
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.klm-sidebar__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: #f7f7f7;
+  color: #222;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.klm-sidebar__toggle-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.klm-sidebar__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+}
+
+.klm-sidebar--collapsed .klm-sidebar__body {
+  display: none;
+}
+
+.klm-sidebar__section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.klm-sidebar__section label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #444;
+}
+
+.klm-sidebar__section select {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: white;
+  color: #111;
+}
+
+.klm-sidebar__section select:disabled {
+  background: #f4f4f4;
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------
+   BACK BUTTON
+   --------------------------------------------------------------- */
+
+.klm-back-button {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 10px 16px;
+  background: white;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+}
+
+.klm-back-button:hover {
+  background: #f0f0f0;
+}
+
+/* ---------------------------------------------------------------
+   MOBILE BROWSE DRAWER
+   --------------------------------------------------------------- */
+
+.klm-mobile-browse-button {
+  display: none;
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 1000;
+  min-height: 38px;
+  padding: 8px 14px;
+  align-items: center;
+  background: white;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+}
+
+.klm-mobile-drawer {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 64px;
+  z-index: 1100;
+  max-height: 60%;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  transform: translateY(calc(100% + 80px));
+  transition: transform 0.25s ease;
+  visibility: hidden;
+}
+
+.klm-mobile-drawer--open {
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.klm-mobile-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  font-size: 15px;
+  font-weight: 700;
+  color: #222;
+}
+
+.klm-mobile-drawer__close {
+  border: none;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #555;
+  padding: 4px;
+}
+
+.klm-mobile-drawer__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  overflow-y: auto;
+}
+
+.klm-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* ---------------------------------------------------------------
+   RESPONSIVE
+   --------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  .klm-sidebar {
+    display: none;
+  }
+
+  .klm-mobile-browse-button {
+    display: inline-flex;
+  }
+
+  .klm-back-button {
+    top: auto;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .leaflet-control-layers {
+    max-height: 40vh;
+  }
+}
+

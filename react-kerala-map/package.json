@@ -1,0 +1,55 @@
+{
+  "name": "react-kerala-map",
+  "version": "0.1.0",
+  "description": "Interactive React map of Kerala for exploring districts, local bodies, wards and constituencies (Lok Sabha / State Assembly) with search. Party/alliance visualization is intentionally excluded.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.umd.js",
+  "module": "dist/index.es.js",
+  "unpkg": "dist/index.umd.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.umd.js"
+    },
+    "./style.css": "./dist/react-kerala-map.css"
+  },
+  "files": [
+    "dist",
+    "index.d.ts",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite --config vite.config.example.mjs",
+    "build": "vite build --config vite.config.mjs",
+    "build:example": "vite build example --config vite.config.example.mjs",
+    "test:e2e": "node scripts/e2e-browser-test.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=17",
+    "react-dom": ">=17"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4",
+    "leaflet-search": "^3.0.9"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.3.5"
+  },
+  "keywords": [
+    "kerala",
+    "map",
+    "leaflet",
+    "react",
+    "geojson",
+    "wards",
+    "local-body",
+    "elections"
+  ]
+}
