@@ -129,6 +129,35 @@ try {
   process.exit(1);
 }
 
+// ------------------------------------------- initial top-level layer renders
+// Regression: leaflet-search adds the whole searchable layer group to the map
+// while the control is created, which makes Leaflet fire `baselayerchange` for
+// those programmatic adds. If the controller treats them as user input, the
+// cascade ends with no top-level layer on the map at all (blank map, no
+// checked radio) until the consumer switches layers manually.
+await page
+  .waitForFunction(
+    () => document.querySelectorAll('.leaflet-overlay-pane svg path').length > 5,
+    { timeout: 60000 }
+  )
+  .catch(() => {});
+const topLevel = await page.evaluate(() => ({
+  paths: document.querySelectorAll('.leaflet-overlay-pane svg path').length,
+  activeBaseLayers: document.querySelectorAll(
+    '.leaflet-control-layers-base input:checked'
+  ).length,
+}));
+check(
+  'district layer renders without interaction',
+  topLevel.paths > 5,
+  `${topLevel.paths} paths`
+);
+check(
+  'exactly one base layer is active on load',
+  topLevel.activeBaseLayers === 1,
+  `${topLevel.activeBaseLayers} checked`
+);
+
 // --------------------------------------------------------- district + options
 // Delay the district's local-body file so the "still loading" state of the
 // type select can be asserted deterministically.
@@ -265,6 +294,11 @@ check(
   popupText.includes(target.label.split(' (')[0]),
   target.label
 );
+check(
+  'default popup stays free of electoral data',
+  !/Election Results|Winning Party|Alliance|LDF|UDF|NDA/.test(popupText),
+  popupText.slice(0, 100)
+);
 
 // ------------------------------------------------------ ward click drill-down
 await page.evaluate(() => window.keralaMap.getMap().closePopup());
@@ -324,6 +358,166 @@ const partyFields = logs.filter((line) =>
 );
 check('no party/alliance data in app output', partyFields.length === 0, partyFields.slice(0, 1).join(''));
 check('no uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' || '));
+
+// ---------------------------------------- showElectionResults flag (opt-in)
+// Contract of the opt-in flag: the built-in popups must stay party-free by
+// default and only add the "Election Results" block when it is enabled. The
+// demo exposes the popup builders, so both states can be asserted against real
+// dataset shapes regardless of which polygon happens to receive a click.
+const popupContract = await page.evaluate(() => {
+  const builders = window.keralaMapPopups;
+  const assembly = {
+    Asmbly_Con: 'Manjeshwaram',
+    District: 'KASARAGOD',
+    elected_representative: 'AKM Ashraf',
+    lac_code: 1,
+    Prlmnt_Con: 'KASARAGOD',
+    'Area(sqkm)': 378.6475933415851,
+    winning_party: 'IUML',
+    winning_party_full: 'Indian Union Muslim League',
+    winning_front: 'UDF',
+    winning_front_full: 'United Democratic Front',
+  };
+  const loksabha = {
+    ls_seat_name: 'Mavelikkara',
+    elected_representative: 'Kodikunnil Suresh',
+    ls_seat_code: '16',
+    ls_reservation: 'SC',
+    electors: '1331880',
+    votes: '894971',
+    turnout_percentage: '67.20%',
+    margin: '10868',
+    margin_percentage: '1.20%',
+    winning_party: 'INC',
+    winning_party_full: 'Indian National Congress',
+    winning_front: 'UDF',
+    // The Lok Sabha dataset spells the full front name like this.
+    fron_full: 'United Democratic Front',
+  };
+  const localBody = {
+    sec_kerala_code: 'G01001',
+    lsgd_name: 'Parassala',
+    district: 'Thiruvananthapuram',
+    lsgd_type: 'Grama Panchayat',
+    number_of_wards: '24',
+    LDF: '9',
+    UDF: '10',
+    NDA: '3',
+    OTH: '2',
+    majority_number: '13',
+    largest_front: 'UDF',
+    majority_front: 'No Majority',
+  };
+  const ward = {
+    ward_name: 'KRISHNAPURAM',
+    ward_number: 17,
+    lsgd_name: 'Vellarada',
+    lsgd_type: 'Grama Panchayat',
+    elected_representative: 'Shinu M',
+    winning_party: 'CPI(M)',
+    winning_front: 'LDF',
+    votes: '485',
+    year: '2025',
+  };
+
+  return {
+    off: {
+      assembly: builders.assemblyPopupHtml(assembly),
+      loksabha: builders.loksabhaPopupHtml(loksabha),
+      localBody: builders.localBodyPopupHtml(localBody),
+      ward: builders.wardPopupHtml(ward, null),
+    },
+    on: {
+      assembly: builders.assemblyPopupHtml(assembly, { showElectionResults: true }),
+      loksabha: builders.loksabhaPopupHtml(loksabha, { showElectionResults: true }),
+      localBody: builders.localBodyPopupHtml(localBody, { showElectionResults: true }),
+      ward: builders.wardPopupHtml(ward, null, { showElectionResults: true }),
+    },
+  };
+});
+
+const ELECTION_DATA =
+  /Election Results|Winning Party|Alliance|\bLDF\b|\bUDF\b|\bNDA\b|IUML|CPI\(M\)/;
+const leaked = Object.entries(popupContract.off).filter(([, html]) =>
+  ELECTION_DATA.test(html)
+);
+check(
+  'popup builders hide electoral data by default',
+  leaked.length === 0,
+  leaked.map(([type]) => type).join(', ') || 'all clean'
+);
+
+const missingBlock = Object.entries(popupContract.on).filter(
+  ([, html]) => !html.includes('Election Results')
+);
+check(
+  'popup builders add the election block when opted in',
+  missingBlock.length === 0,
+  missingBlock.map(([type]) => type).join(', ') || 'all four builders'
+);
+check(
+  'opt-in assembly popup carries constituency + party data',
+  popupContract.on.assembly.includes('Parliamentary Constituency') &&
+    popupContract.on.assembly.includes('Indian Union Muslim League') &&
+    popupContract.on.assembly.includes('United Democratic Front'),
+  popupContract.on.assembly.slice(0, 60)
+);
+check(
+  'opt-in loksabha popup reads the fron_full spelling',
+  popupContract.on.loksabha.includes('Reservation') &&
+    popupContract.on.loksabha.includes('Electors') &&
+    popupContract.on.loksabha.includes('United Democratic Front'),
+  popupContract.on.loksabha.slice(0, 60)
+);
+check(
+  'opt-in local body popup carries the ward-wise front tally',
+  popupContract.on.localBody.includes('No Majority') &&
+    popupContract.on.localBody.includes('Majority (seats)'),
+  popupContract.on.localBody.slice(0, 60)
+);
+
+// End to end: the flag must travel from the React prop into the popups the
+// controller builds for a real click-driven selection.
+await page.goto(`${PAGE_URL}&electionResults=1`, { waitUntil: 'load', timeout: 60000 });
+await page.waitForSelector('.klm-sidebar', { timeout: 60000 });
+await page.select('#klm-desktop-district', 'Ernakulam');
+await page.waitForFunction(
+  () => {
+    const select = document.querySelector('#klm-desktop-type');
+    return select && !select.disabled && Array.from(select.options).some((o) => o.value);
+  },
+  { timeout: 60000 }
+);
+await page.select('#klm-desktop-type', 'Grama Panchayat');
+await page.waitForFunction(
+  () => {
+    const select = document.querySelector('#klm-desktop-body');
+    return select && !select.disabled && select.options.length > 1;
+  },
+  { timeout: 30000 }
+);
+const optInBodies = await page.$$eval('#klm-desktop-body option', (options) =>
+  options.filter((o) => o.value && !o.disabled).map((o) => o.value)
+);
+await page.select('#klm-desktop-body', optInBodies[0]);
+await page.waitForSelector('.leaflet-popup', { timeout: 20000 });
+const optInPopup = await page.$eval('.leaflet-popup', (node) =>
+  node.textContent.replace(/\s+/g, ' ').trim()
+);
+check(
+  'showElectionResults prop reaches the built-in popups',
+  optInPopup.includes('Election Results'),
+  optInPopup.slice(0, 120)
+);
+check(
+  'opt-in popup renders the LDF / UDF tally for a grama panchayat',
+  optInPopup.includes('LDF') && optInPopup.includes('UDF'),
+  optInPopup.slice(0, 120)
+);
+
+// Back to the default (flag off) page: the mobile drawer section below reloads
+// the current URL and is about the browse selects, not the flag.
+await page.goto(PAGE_URL, { waitUntil: 'load', timeout: 60000 });
 
 // --------------------------------------------------------------- mobile UI
 await page.setViewport({ width: 390, height: 844 });

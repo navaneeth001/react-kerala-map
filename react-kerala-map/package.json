@@ -1,8 +1,18 @@
 {
   "name": "react-kerala-map",
-  "version": "0.1.0",
-  "description": "Interactive React map of Kerala for exploring districts, local bodies, wards and constituencies (Lok Sabha / State Assembly) with search. Party/alliance visualization is intentionally excluded.",
+  "version": "0.2.0",
+  "description": "Interactive React map of Kerala for exploring districts, local bodies, wards and constituencies (Lok Sabha / State Assembly) with search. Party/alliance colouring is intentionally excluded; electoral results and constituency data are opt-in via showElectionResults.",
   "license": "MIT",
+  "author": "Gokul Nair",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gvnair/Kerala_Representative_Map.git",
+    "directory": "react-kerala-map"
+  },
+  "homepage": "https://github.com/gvnair/Kerala_Representative_Map/tree/main/react-kerala-map#readme",
+  "bugs": {
+    "url": "https://github.com/gvnair/Kerala_Representative_Map/issues"
+  },
   "type": "module",
   "main": "dist/index.umd.js",
   "module": "dist/index.es.js",
@@ -50,6 +60,8 @@
     "geojson",
     "wards",
     "local-body",
+    "constituency",
+    "election-results",
     "elections"
   ]
 }

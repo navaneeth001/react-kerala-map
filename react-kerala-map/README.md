@@ -4,11 +4,15 @@ A React npm package version of the **Kerala Representatives Map** — an interac
 map of Kerala for exploring districts, local bodies (LSGIs), wards, and
 Lok Sabha / State Assembly constituencies, with search and drill-down navigation.
 
-> **Note:** The political party / alliance (LDF / UDF / NDA) colouring and
-> result visualisation from the original project is intentionally **not**
-> included. This package focuses purely on geography, boundaries and
-> representative navigation. Selection highlighting uses a single configurable
-> neutral colour.
+> **Note:** The political party / alliance (LDF / UDF / NDA) *colouring* of the
+> original project is intentionally **not** included: this package focuses on
+> geography, boundaries and representative navigation, and selection
+> highlighting uses a single configurable neutral colour.
+>
+> The electoral *data* the datasets already carry (winning party, alliance,
+> votes, margins, ward tallies) ships with the map but is **off by default** —
+> enable it with `showElectionResults`, see
+> [Electoral results](#electoral-results-opt-in).
 
 ## Features
 
@@ -21,7 +25,8 @@ Lok Sabha / State Assembly constituencies, with search and drill-down navigation
 - Un-drawable selections are surfaced honestly: local body types / bodies with
   no published boundaries are listed disabled with a `(no map data)` suffix
 - Back button to step up the drill-down
-- Hover tooltips and click popups showing representative details (party-free)
+- Hover tooltips and click popups showing representative details, party-free
+  unless [`showElectionResults`](#electoral-results-opt-in) is enabled
 - Client-side caching of fetched GeoJSON
 - Imperative ref API for programmatic control
 
@@ -125,6 +130,7 @@ http://localhost:5174/?data=http://localhost:8000/data/
 | `showBrowseSidebar` | `boolean` | `true` | Show browse sidebar / mobile drawer |
 | `showBackButton` | `boolean` | `true` | Show the drill-down back button |
 | `highlightColor` | `string` | `'#1a73e8'` | Selection highlight colour |
+| `showElectionResults` | `boolean` | `false` | Opt-in: electoral results + constituency data in the built-in popups |
 | `popupRenderer` | `function` | — | Custom popup content (see below) |
 | `mapOptions` | `object` | — | Extra Leaflet `Map` options |
 | `onSelectionChange` | `function` | — | Fired on every selection change |
@@ -149,11 +155,47 @@ mapRef.current.goBack();                    // step up the drill-down
 mapRef.current.search('Kochi');             // programmatic search
 ```
 
+## Electoral results (opt-in)
+
+By default the popups stay free of party / alliance information. Setting
+`showElectionResults` adds an **Election Results** block to them, built from the
+electoral data the project's datasets already contain:
+
+```jsx
+<KeralaMap showElectionResults />
+```
+
+| Level | Rows added |
+| --- | --- |
+| Lok Sabha | Seat code, reservation, electors, votes polled, margin %, winning party, alliance |
+| State Assembly | Constituency code, parliamentary constituency, area (sq km), winning party, alliance |
+| Local body | LDF / UDF / NDA / Others ward tally, largest front, majority front, majority (seats) |
+| Ward | Winning party, alliance, votes |
+
+Alliance names tolerate the dataset's own spelling: the Lok Sabha file ships the
+full name as `fron_full` while the other files use `winning_front_full`, and both
+are displayed as `UDF — United Democratic Front`.
+
+The flag exists on the imperative controller too, and can be toggled after
+init (it is read whenever a popup is produced):
+
+```js
+const controller = createKeralaMapController(container, {
+  showElectionResults: true,
+});
+
+controller.updateOptions({ showElectionResults: false });
+```
+
+Alliance **colour coding** stays excluded either way — `highlightColor` remains
+the only fill colour the map applies to a selection. To try the flag out in the
+demo app, append `?electionResults=1`.
+
 ## Custom popups
 
-Default popups are party-free and show only geographic/representative details.
-Provide `popupRenderer` to fully customise them — return `null` to fall back to
-the built-in popup for that type:
+Default popups show only geographic / representative details, plus the election
+block when `showElectionResults` is on. Provide `popupRenderer` to fully
+customise them — return `null` to fall back to the built-in popup for that type:
 
 ```jsx
 <KeralaMap
@@ -180,6 +222,10 @@ npm run dev           # demo app on http://localhost:5174
 npm run build         # library build -> dist/
 ```
 
+The demo accepts `?data=<base-url>` to point at a different data host and
+`?electionResults=1` to try the opt-in result popups, e.g.
+`http://localhost:5174/?data=http://localhost:8000/data/&electionResults=1`.
+
 End-to-end check of the full drill-down (district → type → local body → ward,
 back button, layer switch, search) in a real headless Chrome:
 
@@ -192,6 +238,33 @@ npm run test:e2e                       # add a data URL to test remote data
 The script serves the repository's `data/` folder with CORS headers when it is
 present, and falls back to the hosted data URL otherwise. It exits non-zero if
 any check fails.
+
+## Changelog
+
+### 0.2.0
+
+- **New:** `showElectionResults` prop / controller option (**default `false`**)
+  adds an **Election Results** block to the built-in popups with the electoral
+  results and constituency data already carried by the datasets — see
+  [Electoral results](#electoral-results-opt-in). Party / alliance **colouring**
+  remains excluded either way.
+- The exported popup builders (`loksabhaPopupHtml`, `assemblyPopupHtml`,
+  `localBodyPopupHtml`, `wardPopupHtml`) accept an optional
+  `{ showElectionResults }` argument, and the flag can be toggled after init
+  with `controller.updateOptions({ showElectionResults })`.
+- Lok Sabha popups read the dataset's `fron_full` spelling of the alliance name
+  (the other files use `winning_front_full`); vote / elector counts are
+  formatted with Indian digit grouping and percentages are not double-suffixed.
+- Fixed: wiring the layers could cascade `baselayerchange` events and leave the
+  map with no top-level layer drawn and no radio checked.
+- Added package metadata (`repository`, `homepage`, `bugs`, `author`).
+
+### 0.1.0
+
+- First release: Leaflet map of Kerala with a District → Local Body → Ward
+  drill-down, Districts / State Assembly / Lok Sabha layers, search, browse
+  sidebar (desktop) and drawer (mobile), client-side caching and an imperative
+  ref API.
 
 ## Author
 

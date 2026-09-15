@@ -51,8 +51,16 @@ export interface KeralaMapProps {
   showSearch?: boolean;
   showBrowseSidebar?: boolean;
   showBackButton?: boolean;
-  /** Selection highlight colour (party/alliance colouring is excluded by design). */
+  /** Selection highlight colour (alliance colour coding is never applied). */
   highlightColor?: string;
+  /**
+   * Opt-in (default `false`): show the electoral result data the datasets
+   * carry in the built-in popups — winning party and alliance, votes, margins,
+   * turnout, constituency codes, reservation and, for local bodies, the
+   * ward-wise front tally. Leaving it off keeps the map free of party /
+   * alliance information.
+   */
+  showElectionResults?: boolean;
   /** Return HTML string / element, or null to fall back to the built-in popup. */
   popupRenderer?: (
     type: PopupType,
@@ -103,6 +111,8 @@ export interface KeralaMapControllerOptions {
   showLayerControl?: boolean;
   showSearch?: boolean;
   highlightColor?: string;
+  /** Opt-in electoral data in the built-in popups (default `false`). */
+  showElectionResults?: boolean;
   popupRenderer?: KeralaMapProps['popupRenderer'];
   mapOptions?: L.MapOptions;
   onSelectionChange?: (selection: MapSelection) => void;
@@ -160,16 +170,29 @@ export declare function fetchDataBundle(options: {
 export declare function toDistrictFileName(district: string): string;
 export declare function joinUrl(base: string, path: string): string;
 
+/** Options accepted by every built-in popup builder. */
+export interface PopupOptions {
+  /**
+   * Opt-in (default `false`): add the "Election Results" block with the
+   * electoral data of the datasets (party, alliance, votes, margins, tally).
+   */
+  showElectionResults?: boolean;
+}
+
 export declare function loksabhaPopupHtml(
-  properties: Record<string, unknown>
+  properties: Record<string, unknown>,
+  options?: PopupOptions
 ): string;
 export declare function assemblyPopupHtml(
-  properties: Record<string, unknown>
+  properties: Record<string, unknown>,
+  options?: PopupOptions
 ): string;
 export declare function localBodyPopupHtml(
-  info: Record<string, unknown>
+  info: Record<string, unknown>,
+  options?: PopupOptions
 ): string;
 export declare function wardPopupHtml(
   properties: Record<string, unknown>,
-  info?: Record<string, unknown> | null
+  info?: Record<string, unknown> | null,
+  options?: PopupOptions
 ): string;

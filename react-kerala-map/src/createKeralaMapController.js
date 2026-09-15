@@ -1,11 +1,15 @@
 /**
  * Framework-agnostic Leaflet controller powering react-kerala-map.
  *
- * This is a port of the original vanilla-JS Kerala Representative Map,
- * with all political-party / alliance (LDF/UDF/NDA) visualisation removed:
+ * This is a port of the original vanilla-JS Kerala Representative Map.
+ * Political-party / alliance (LDF/UDF/NDA) visualisation is off by default:
  *   - no alliance colour coding (a single neutral `highlightColor` is used
  *     for selection highlighting instead)
  *   - popups expose only geography + representative details
+ *
+ * Setting the `showElectionResults` option to true opts back in to *showing*
+ * the electoral data of the datasets inside the built-in popups. It never
+ * switches on alliance colour coding.
  *
  * The controller owns the Leaflet map instance and exposes an imperative
  * API; the React component in KeralaMap.jsx is a thin wrapper around it.
@@ -43,6 +47,14 @@ const DEFAULT_OPTIONS = {
   showSearch: true,
   /** Colour used to highlight the currently selected feature. */
   highlightColor: '#1a73e8',
+  /**
+   * Opt-in flag (default `false`): the built-in popups additionally show the
+   * electoral result data the datasets carry — winning party and alliance,
+   * votes, margins, turnout, constituency codes, reservation and, for local
+   * bodies, the ward-wise front tally. Leave it off to keep the map free of
+   * party / alliance information.
+   */
+  showElectionResults: false,
   /** Optional (type, properties, localBodyInfo) => html|element|null. */
   popupRenderer: null,
   mapOptions: {},
@@ -95,6 +107,28 @@ export function createKeralaMapController(container, userOptions = {}) {
   let lsgiLookup = {};
   let currentDistrict = null;
   let destroyed = false;
+
+  /**
+   * Leaflet's `LayersControl` fires `baselayerchange` for *every* add of a
+   * registered base layer — not only for clicks in the control (see
+   * `LayersControl._onLayerChange`). The listener further down cannot tell a
+   * user click from the controller's own wiring, so this counter marks the
+   * phases in which the controller adds/removes the top-level layers itself
+   * and the listener ignores the events caused by it. Without it, adding a
+   * layer re-enters the listener, and the resulting cascade ends with no
+   * top-level layer on the map at all (blank map, no checked radio).
+   */
+  let programmaticLayerChange = 0;
+
+  /** Run `fn` while `baselayerchange` events caused by it are ignored. */
+  function withoutBaseLayerEvents(fn) {
+    programmaticLayerChange += 1;
+    try {
+      return fn();
+    } finally {
+      programmaticLayerChange -= 1;
+    }
+  }
 
   const localBodyCache = new Map();
   const wardCache = new Map();
@@ -199,15 +233,17 @@ export function createKeralaMapController(container, userOptions = {}) {
   /** Show exactly one top-level layer (districts / assembly / loksabha). */
   function activateTopLevelLayer(targetLayer) {
     if (!map) return;
-    resetToTopLevel();
-    [districtLayer, acLayer, lsLayer].forEach((layer) => {
-      if (layer && layer !== targetLayer && map.hasLayer(layer)) {
-        map.removeLayer(layer);
+    withoutBaseLayerEvents(() => {
+      resetToTopLevel();
+      [districtLayer, acLayer, lsLayer].forEach((layer) => {
+        if (layer && layer !== targetLayer && map.hasLayer(layer)) {
+          map.removeLayer(layer);
+        }
+      });
+      if (targetLayer && !map.hasLayer(targetLayer)) {
+        map.addLayer(targetLayer);
       }
     });
-    if (targetLayer && !map.hasLayer(targetLayer)) {
-      map.addLayer(targetLayer);
-    }
   }
 
 
@@ -226,20 +262,26 @@ export function createKeralaMapController(container, userOptions = {}) {
     });
   }
 
+  /**
+   * Built-in popup HTML. `showElectionResults` is read on every call, so the
+   * flag can be toggled at runtime through `updateOptions` and applies to the
+   * popups opened afterwards.
+   */
   function popupFor(type, properties, info) {
     if (typeof options.popupRenderer === 'function') {
       const custom = options.popupRenderer(type, properties || {}, info || null);
       if (custom !== undefined && custom !== null) return custom;
     }
+    const popupOptions = { showElectionResults: options.showElectionResults };
     switch (type) {
       case 'loksabha':
-        return loksabhaPopupHtml(properties || {});
+        return loksabhaPopupHtml(properties || {}, popupOptions);
       case 'assembly':
-        return assemblyPopupHtml(properties || {});
+        return assemblyPopupHtml(properties || {}, popupOptions);
       case 'localBody':
-        return localBodyPopupHtml(info || {});
+        return localBodyPopupHtml(info || {}, popupOptions);
       case 'ward':
-        return wardPopupHtml(properties || {}, info);
+        return wardPopupHtml(properties || {}, info, popupOptions);
       default:
         return '';
     }
@@ -671,6 +713,10 @@ export function createKeralaMapController(container, userOptions = {}) {
         if (Object.keys(baseMaps).length > 1) {
           L.control.layers(baseMaps, null, { collapsed: false }).addTo(map);
           map.on('baselayerchange', (event) => {
+            // `baselayerchange` also fires for the adds the controller itself
+            // performs (and for leaflet-search adding the searchable group
+            // below), so only react to genuine clicks in the layer control.
+            if (programmaticLayerChange > 0) return;
             if (
               event &&
               event.layer &&
@@ -708,14 +754,18 @@ export function createKeralaMapController(container, userOptions = {}) {
           if (e.layer.openPopup) e.layer.openPopup();
         });
 
-        map.addControl(searchControl);
+        // leaflet-search adds the whole searchable layer group to the map when
+        // the control is added (see `Control.Search#setLayer`), so Leaflet
+        // announces a `baselayerchange` for every layer in it — ignore those
+        // while keeping only the initial layer visible.
+        withoutBaseLayerEvents(() => {
+          map.addControl(searchControl);
 
-        // leaflet-search adds the whole searchable layer group to the map;
-        // keep only the initial layer visible.
-        [districtLayer, acLayer, lsLayer].forEach((layer) => {
-          if (layer !== initialLayer && map.hasLayer(layer)) {
-            map.removeLayer(layer);
-          }
+          [districtLayer, acLayer, lsLayer].forEach((layer) => {
+            if (layer !== initialLayer && map.hasLayer(layer)) {
+              map.removeLayer(layer);
+            }
+          });
         });
       }
 

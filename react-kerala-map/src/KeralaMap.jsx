@@ -133,6 +133,7 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
     showBrowseSidebar = true,
     showBackButton = true,
     highlightColor = '#1a73e8',
+    showElectionResults = false,
     popupRenderer,
     mapOptions,
     onSelectionChange,
@@ -155,6 +156,7 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
     showLayerControl,
     showSearch,
     highlightColor,
+    showElectionResults,
     popupRenderer,
     mapOptions,
   });
@@ -220,12 +222,17 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
     };
   }, []);
 
-  // Live-update options the controller can consume without a re-init.
+  // Live-update options the controller can consume without a re-init. Both are
+  // read only while producing a popup / a style, so a change applies from the
+  // next popup or selection onwards.
   useEffect(() => {
     if (controllerRef.current) {
-      controllerRef.current.updateOptions({ highlightColor });
+      controllerRef.current.updateOptions({
+        highlightColor,
+        showElectionResults,
+      });
     }
-  }, [highlightColor]);
+  }, [highlightColor, showElectionResults]);
 
   useImperativeHandle(
     ref,

@@ -73,6 +73,21 @@
   white-space: nowrap;
 }
 
+/* Electoral-result block, only rendered with `showElectionResults`. */
+.klm-popup__section {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.klm-popup__section-title {
+  color: #555;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 /* ---------------------------------------------------------------
    OVERLAYS
    --------------------------------------------------------------- */
