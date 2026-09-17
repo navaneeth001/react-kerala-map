@@ -19,9 +19,8 @@ import L from 'leaflet';
 import 'leaflet-search';
 import {
   fetchDataBundle,
-  fetchJson,
-  joinUrl,
-  resolveDistrictPath,
+  loadDistrictLocalBodies,
+  loadDistrictWards,
   DEFAULT_DATA_BASE_URL,
   DEFAULT_DATA_PATHS,
 } from './dataApi.js';
@@ -31,6 +30,7 @@ import {
   localBodyPopupHtml,
   wardPopupHtml,
 } from './popups.js';
+import { createDivisionIndex } from './geoIndex.js';
 
 const NEUTRAL_FILL = '#f5f5f5';
 
@@ -130,10 +130,12 @@ export function createKeralaMapController(container, userOptions = {}) {
     }
   }
 
-  const localBodyCache = new Map();
+    const localBodyCache = new Map();
   const wardCache = new Map();
   /** district -> Set of sec_kerala_codes that have local-body geometry. */
   const localBodyCodesByDistrict = new Map();
+  /** district -> division index built from the local-body GeoJSON. */
+  const localBodyIndexCache = new Map();
 
   // ---------------------------------------------------------------
   // OPTIONS / STYLES
@@ -404,21 +406,25 @@ export function createKeralaMapController(container, userOptions = {}) {
     clearLocalBodyView();
     currentDistrict = district;
 
-    const url = joinUrl(
-      options.dataBaseUrl,
-      resolveDistrictPath(options.dataPaths.localBodies, district)
-    );
-
     let geojson;
     try {
       geojson = localBodyCache.has(district)
         ? localBodyCache.get(district)
-        : await fetchJson(url);
+        : await loadDistrictLocalBodies(
+            district,
+            options.dataBaseUrl,
+            options.dataPaths
+          );
     } catch (error) {
       if (typeof options.onError === 'function') options.onError(error);
       return;
     }
     localBodyCache.set(district, geojson);
+
+    // Build a client-side point-in-division index for coordinate lookups.
+    if (!localBodyIndexCache.has(district)) {
+      localBodyIndexCache.set(district, createDivisionIndex(geojson));
+    }
 
     // Index the codes that actually have geometry for this district, so
     // consumers can tell which selections are drawable.
@@ -492,16 +498,15 @@ export function createKeralaMapController(container, userOptions = {}) {
     if (!map) return;
     clearWardView();
 
-    const url = joinUrl(
-      options.dataBaseUrl,
-      resolveDistrictPath(options.dataPaths.wards, district)
-    );
-
-    let geojson;
+        let geojson;
     try {
       geojson = wardCache.has(district)
         ? wardCache.get(district)
-        : await fetchJson(url);
+        : await loadDistrictWards(
+            district,
+            options.dataBaseUrl,
+            options.dataPaths
+          );
     } catch (error) {
       if (typeof options.onError === 'function') options.onError(error);
       return;
@@ -813,13 +818,46 @@ export function createKeralaMapController(container, userOptions = {}) {
     return codes ? Array.from(codes) : null;
   }
 
-  function getLocalBodies(district, type) {
+    function getLocalBodies(district, type) {
     return Object.values(lsgiLookup)
       .filter(
         (info) =>
           info && info.district === district && (!type || info.lsgd_type === type)
       )
       .sort((a, b) => String(a.lsgd_name).localeCompare(String(b.lsgd_name)));
+  }
+
+  /**
+   * Classify a geographic coordinate against the currently-loaded district's
+   * local-body boundaries. Uses the client-side division index built by
+   * `loadLocalBodies`; returns `null` when no district GeoJSON has been loaded
+   * or the point falls outside every local body.
+   *
+   * @param {number} lng Longitude
+   * @param {number} lat Latitude
+   * @returns {string|null} The `sec_kerala_code` of the division, or `null`.
+   */
+  function findDivisionForPointCode(lng, lat) {
+    const index = currentDistrict
+      ? localBodyIndexCache.get(currentDistrict)
+      : null;
+    return index ? index.findDivisionForPointCode(lng, lat) : null;
+  }
+
+  /**
+   * Feature matching a coordinate within the currently-loaded district, or
+   * `null` when the district's GeoJSON has not been loaded yet or the point
+   * does not lie inside any local body.
+   *
+   * @param {number} lng Longitude
+   * @param {number} lat Latitude
+   * @returns {GeoJSON.Feature|null}
+   */
+  function findDivisionForPoint(lng, lat) {
+    const index = currentDistrict
+      ? localBodyIndexCache.get(currentDistrict)
+      : null;
+    return index ? index.findDivisionForPoint(lng, lat) : null;
   }
 
   return {
@@ -832,11 +870,13 @@ export function createKeralaMapController(container, userOptions = {}) {
     getLocalBodyTypes,
     getLocalBodies,
     getAvailableLocalBodyCodes,
-    switchToLayer,
+        switchToLayer,
     goBack,
     search,
     selectDistrictByName,
     selectLocalBodyByCode,
+    findDivisionForPointCode,
+    findDivisionForPoint,
   };
 }
 

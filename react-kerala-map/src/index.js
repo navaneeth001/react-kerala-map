@@ -15,5 +15,13 @@ export {
   DEFAULT_DATA_PATHS,
   fetchDataBundle,
   fetchJson,
+  loadDistrictLocalBodies,
+  loadDistrictWards,
   toDistrictFileName,
 } from './dataApi.js';
+
+export {
+  createDivisionIndex,
+  geometryBbox,
+  pointInGeometry,
+} from './geoIndex.js';

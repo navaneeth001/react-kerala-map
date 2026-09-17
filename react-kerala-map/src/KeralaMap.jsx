@@ -248,8 +248,16 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
         controllerRef.current
           ? controllerRef.current.getAvailableLocalBodyCodes(district)
           : null,
-      goBack: () => controllerRef.current && controllerRef.current.goBack(),
+            goBack: () => controllerRef.current && controllerRef.current.goBack(),
       search: (query) => controllerRef.current && controllerRef.current.search(query),
+      findDivisionForPointCode: (lng, lat) =>
+        controllerRef.current
+          ? controllerRef.current.findDivisionForPointCode(lng, lat)
+          : null,
+      findDivisionForPoint: (lng, lat) =>
+        controllerRef.current
+          ? controllerRef.current.findDivisionForPoint(lng, lat)
+          : null,
     }),
     []
   );

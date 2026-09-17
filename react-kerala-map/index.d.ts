@@ -92,6 +92,10 @@ export interface KeralaMapRef {
   selectLocalBody(secKeralaCode: string): Promise<boolean>;
   /** `sec_kerala_code`s with geometry for a district, or `null` if still loading. */
   getAvailableLocalBodyCodes(district: string): string[] | null;
+  /** Classify a coordinate within the loaded district; `null` if outside or no data. */
+  findDivisionForPointCode(lng: number, lat: number): string | null;
+  /** Feature at a coordinate within the loaded district, or `null`. */
+  findDivisionForPoint(lng: number, lat: number): GeoJSON.Feature | null;
   goBack(): void;
   search(query: string): void;
 }
@@ -146,6 +150,10 @@ export interface KeralaMapController {
   search(query: string): void;
   selectDistrictByName(district: string): Promise<boolean>;
   selectLocalBodyByCode(secKeralaCode: string): Promise<boolean>;
+  /** Classify a coordinate within the loaded district; `null` if outside or no data. */
+  findDivisionForPointCode(lng: number, lat: number): string | null;
+  /** Feature at a coordinate within the loaded district, or `null`. */
+  findDivisionForPoint(lng: number, lat: number): GeoJSON.Feature | null;
 }
 
 export declare function createKeralaMapController(
@@ -169,6 +177,44 @@ export declare function fetchDataBundle(options: {
 
 export declare function toDistrictFileName(district: string): string;
 export declare function joinUrl(base: string, path: string): string;
+
+export declare function loadDistrictLocalBodies(
+  district: string,
+  dataBaseUrl?: string,
+  dataPaths?: DataPaths
+): Promise<GeoJSON.FeatureCollection>;
+
+export declare function loadDistrictWards(
+  district: string,
+  dataBaseUrl?: string,
+  dataPaths?: DataPaths
+): Promise<GeoJSON.FeatureCollection>;
+
+/**
+ * A client-side point-in-division index over a district's GeoJSON.
+ * Used to classify a lat/lng coordinate against local-body boundaries.
+ */
+export interface DivisionIndex {
+  features: Array<{ feature: GeoJSON.Feature; bbox?: [number, number, number, number] }>;
+  findDivisionForPoint(lng: number, lat: number): GeoJSON.Feature | null;
+  findDivisionForPointCode(lng: number, lat: number): string | null;
+  findDivisionIndex(lng: number, lat: number): number;
+}
+
+export declare function createDivisionIndex(
+  source: GeoJSON.FeatureCollection | GeoJSON.Feature[],
+  options?: { codeProperty?: string }
+): DivisionIndex;
+
+export declare function geometryBbox(
+  geometry: GeoJSON.Geometry | null | undefined
+): [number, number, number, number] | null;
+
+export declare function pointInGeometry(
+  lng: number,
+  lat: number,
+  geometry: GeoJSON.Geometry | null | undefined
+): boolean;
 
 /** Options accepted by every built-in popup builder. */
 export interface PopupOptions {

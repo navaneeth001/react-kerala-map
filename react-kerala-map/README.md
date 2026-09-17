@@ -29,6 +29,7 @@ Lok Sabha / State Assembly constituencies, with search and drill-down navigation
   unless [`showElectionResults`](#electoral-results-opt-in) is enabled
 - Client-side caching of fetched GeoJSON
 - Imperative ref API for programmatic control
+- Coordinate lookup: classify a lat/lng against local-body boundaries
 
 ## Installation
 
@@ -153,7 +154,15 @@ mapRef.current.selectLocalBody('G01007');   // SEC Kerala code -> Promise<boolea
 mapRef.current.getAvailableLocalBodyCodes('Ernakulam'); // codes with geometry
 mapRef.current.goBack();                    // step up the drill-down
 mapRef.current.search('Kochi');             // programmatic search
+mapRef.current.findDivisionForPointCode(76.2, 10.0); // -> "G07051" or null
+mapRef.current.findDivisionForPoint(76.2, 10.0);    // -> GeoJSON.Feature or null
 ```
+
+`findDivisionForPointCode` / `findDivisionForPoint` classify a `[lng, lat]`
+coordinate against the local-body boundaries of the **currently loaded
+district** using a client-side point-in-polygon index. They return `null` when no
+district has been loaded yet or the point falls outside every local body. This
+is handy for identifying which local body a marker or user click landed in.
 
 ## Electoral results (opt-in)
 
@@ -240,6 +249,25 @@ present, and falls back to the hosted data URL otherwise. It exits non-zero if
 any check fails.
 
 ## Changelog
+
+### 0.3.0
+
+- **New:** client-side coordinate lookup — `createDivisionIndex` builds a
+  bounding-box-then-ray-casting point-in-polygon index over any GeoJSON
+  FeatureCollection. Exposed on the controller as `findDivisionForPoint(lng, lat)`
+  / `findDivisionForPointCode(lng, lat)` and on the React ref as
+  `mapRef.current.findDivisionForPoint(...)` / `findDivisionForPointCode(...)`.
+  Returns `null` when no district GeoJSON has been loaded or the point is outside
+  every local body boundary.
+- **New:** `loadDistrictLocalBodies(district, dataBaseUrl?, dataPaths?)` and
+  `loadDistrictWards(district, dataBaseUrl?, dataPaths?)` helpers for fetching a
+  district's local-body or ward GeoJSON with the shared in-memory cache.
+- **New:** `geometryBbox(geometry)` and `pointInGeometry(lng, lat, geometry)`
+  utility exports.
+- The controller now builds a division index when a district's local-body
+  GeoJSON loads (cached per district), powering the coordinate lookup methods.
+- Cleaned up unused imports (`joinUrl`, `fetchJson`, `resolveDistrictPath`) in
+  the controller — URL construction moved to the `dataApi` helpers.
 
 ### 0.2.0
 

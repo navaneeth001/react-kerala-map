@@ -80,3 +80,36 @@ export function fetchDataBundle({ dataBaseUrl = DEFAULT_DATA_BASE_URL, dataPaths
     lsgiLookup: lsgiLookup || {},
   }));
 }
+
+/**
+ * Load (and cache, via fetchJson) a district's local-body GeoJSON.
+ *
+ * @param {string} district District name, e.g. `"Ernakulam"`.
+ * @param {string} [dataBaseUrl] Base URL hosting the data (defaults to the
+ *   published GitHub Pages directory).
+ * @returns {Promise<GeoJSON.FeatureCollection>}
+ */
+export async function loadDistrictLocalBodies(district, dataBaseUrl, dataPaths) {
+  const paths = { ...DEFAULT_DATA_PATHS, ...(dataPaths || {}) };
+  const url = joinUrl(
+    dataBaseUrl || DEFAULT_DATA_BASE_URL,
+    resolveDistrictPath(paths.localBodies, district)
+  );
+  return fetchJson(url);
+}
+
+/**
+ * Load (and cache, via fetchJson) a district's ward GeoJSON.
+ *
+ * @param {string} district District name, e.g. `"Ernakulam"`.
+ * @param {string} [dataBaseUrl] Base URL hosting the data.
+ * @returns {Promise<GeoJSON.FeatureCollection>}
+ */
+export async function loadDistrictWards(district, dataBaseUrl, dataPaths) {
+  const paths = { ...DEFAULT_DATA_PATHS, ...(dataPaths || {}) };
+  const url = joinUrl(
+    dataBaseUrl || DEFAULT_DATA_BASE_URL,
+    resolveDistrictPath(paths.wards, district)
+  );
+  return fetchJson(url);
+}
