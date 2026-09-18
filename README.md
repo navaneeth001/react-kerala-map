@@ -89,6 +89,22 @@ data/
 
 ---
 
+## React npm package
+
+The map is also available as an npm package for React applications —
+[`react-kerala-map`](./react-kerala-map#readme) — with District → Local Body →
+Ward drill-down, search, a typed imperative ref / controller API and opt-in
+election-result popups (alliance colouring is intentionally excluded):
+
+```bash
+npm install react-kerala-map
+```
+
+See the [package README](./react-kerala-map#readme) for props, the controller
+API, self-hosting the data and the changelog.
+
+---
+
 ## Future Improvements
 
 * Ward-level map integration
@@ -103,3 +119,9 @@ data/
 ## Author
 
 Gokul Nair
+
+## License
+
+Released under the [MIT license](./react-kerala-map/LICENSE) — © Gokul Nair,
+original author of the
+[Kerala Representative Map](https://github.com/gvnair/Kerala_Representative_Map).

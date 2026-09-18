@@ -193,6 +193,19 @@
   cursor: not-allowed;
 }
 
+/* Inline notice shown when a selection carries no published boundary
+   (block / district panchayats) so the map shows its summary instead. */
+.klm-sidebar__notice {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #7a5c00;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 6px;
+}
+
 /* ---------------------------------------------------------------
    BACK BUTTON
    --------------------------------------------------------------- */

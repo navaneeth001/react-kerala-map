@@ -33,9 +33,23 @@ function compareLocalBodyTypes(a, b) {
 }
 
 /**
+ * `label`, annotated with a `(no map data)` suffix when the entry has no
+ * published boundary and the availability hint is enabled.
+ */
+function availabilityLabel(label, unavailable, showAvailability) {
+  return unavailable && showAvailability ? `${label} (no map data)` : label;
+}
+
+/**
  * Cascading District -> Local Body Type -> Local Body selects.
- * Options that have no published geometry are shown disabled and labelled,
- * because selecting them cannot draw anything on the map.
+ *
+ * Every district / type / body combination the LSGI lookup carries is listed,
+ * matching the original Kerala Representative Map. Entries whose boundaries
+ * are not published (block panchayats and the district panchayat) are
+ * annotated with a `(no map data)` suffix but stay selectable, so their
+ * summary can still be shown; set `disableUnavailableLocalBodies` to grey
+ * them out instead.
+ *
  * Rendered inside the desktop sidebar and the mobile drawer.
  */
 function BrowseControls({
@@ -45,6 +59,7 @@ function BrowseControls({
   selection,
   bodyType,
   bodiesLoading,
+  notice,
   onDistrictChange,
   onBodyTypeChange,
   onBodyChange,
@@ -116,6 +131,12 @@ function BrowseControls({
           ))}
         </select>
       </div>
+
+      {notice ? (
+        <p className="klm-sidebar__notice" role="status">
+          {notice}
+        </p>
+      ) : null}
     </>
   );
 }
@@ -132,6 +153,9 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
     showSearch = true,
     showBrowseSidebar = true,
     showBackButton = true,
+    showDataAvailability = true,
+    disableUnavailableLocalBodies = false,
+    showSummaryForUnmappedBodies = true,
     highlightColor = '#1a73e8',
     showElectionResults = false,
     popupRenderer,
@@ -157,6 +181,7 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
     showSearch,
     highlightColor,
     showElectionResults,
+    showSummaryForUnmappedBodies,
     popupRenderer,
     mapOptions,
   });
@@ -230,9 +255,10 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
       controllerRef.current.updateOptions({
         highlightColor,
         showElectionResults,
+        showSummaryForUnmappedBodies,
       });
     }
-  }, [highlightColor, showElectionResults]);
+  }, [highlightColor, showElectionResults, showSummaryForUnmappedBodies]);
 
   useImperativeHandle(
     ref,
@@ -249,6 +275,10 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
           ? controllerRef.current.getAvailableLocalBodyCodes(district)
           : null,
             goBack: () => controllerRef.current && controllerRef.current.goBack(),
+      selectLocalBodySummary: (secCode) =>
+        controllerRef.current
+          ? controllerRef.current.selectLocalBodySummary(secCode)
+          : false,
       search: (query) => controllerRef.current && controllerRef.current.search(query),
       findDivisionForPointCode: (lng, lat) =>
         controllerRef.current
@@ -307,9 +337,11 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
     types.sort(compareLocalBodyTypes);
 
     return types.map((type) => {
-      // A type is unusable when none of its local bodies has geometry
-      // (Kerala publishes no block/district panchayat boundaries).
-      const disabled =
+      // A type is unavailable when none of its local bodies has a published
+      // boundary (Kerala publishes no block / district panchayat boundaries).
+      // It is still listed, matching the original project, so the summary of
+      // those bodies stays reachable.
+      const unavailable =
         readyCodes !== null &&
         !entries.some(
           (info) =>
@@ -319,11 +351,17 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
 
       return {
         value: type,
-        label: disabled ? `${type} (no map data)` : type,
-        disabled,
+        label: availabilityLabel(type, unavailable, showDataAvailability),
+        disabled: unavailable && disableUnavailableLocalBodies,
       };
     });
-  }, [lookup, selection.district, readyCodes]);
+  }, [
+    lookup,
+    selection.district,
+    readyCodes,
+    showDataAvailability,
+    disableUnavailableLocalBodies,
+  ]);
 
   const bodyOptions = useMemo(() => {
     if (!lookup || !selection.district || !bodyType) return [];
@@ -338,17 +376,42 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
       .sort((a, b) => String(a.lsgd_name).localeCompare(String(b.lsgd_name)))
       .map((info) => {
         const value = String(info.sec_kerala_code);
-        const disabled = readyCodes !== null && !readyCodes.has(value);
+        const unavailable = readyCodes !== null && !readyCodes.has(value);
 
         return {
           value,
-          label: disabled
-            ? `${info.lsgd_name} (no map data)`
-            : String(info.lsgd_name),
-          disabled,
+          label: availabilityLabel(
+            String(info.lsgd_name),
+            unavailable,
+            showDataAvailability
+          ),
+          disabled: unavailable && disableUnavailableLocalBodies,
         };
       });
-  }, [lookup, selection.district, bodyType, readyCodes]);
+  }, [
+    lookup,
+    selection.district,
+    bodyType,
+    readyCodes,
+    showDataAvailability,
+    disableUnavailableLocalBodies,
+  ]);
+
+  // The current local body has no published boundary, so the map is showing
+  // its summary instead of a polygon. Explained inline so the selection is
+  // never mistaken for a failure.
+  const selectedBodyUnavailable =
+    selection.level === 'localBody' &&
+    !!selection.secCode &&
+    readyCodes !== null &&
+    !readyCodes.has(String(selection.secCode));
+
+  const selectionNotice = selectedBodyUnavailable
+    ? `${
+        (selection.localBodyInfo && selection.localBodyInfo.lsgd_name) ||
+        'This local body'
+      } has no published boundary geometry — showing its summary instead.`
+    : '';
 
   const handleDistrictChange = (districtName) => {
     setBodyType('');
@@ -376,6 +439,7 @@ const KeralaMap = forwardRef(function KeralaMap(props, ref) {
       selection={selection}
       bodyType={bodyType}
       bodiesLoading={bodiesLoading}
+      notice={selectionNotice}
       onDistrictChange={handleDistrictChange}
       onBodyTypeChange={handleBodyTypeChange}
       onBodyChange={handleBodyChange}

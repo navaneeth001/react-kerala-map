@@ -51,6 +51,22 @@ export interface KeralaMapProps {
   showSearch?: boolean;
   showBrowseSidebar?: boolean;
   showBackButton?: boolean;
+  /**
+   * Default `true`: suffix options with no published boundaries (block /
+   * district panchayats) with `(no map data)`.
+   */
+  showDataAvailability?: boolean;
+  /**
+   * Default `false`: local bodies without published boundaries stay selectable
+   * so their summary can be shown. Set to `true` to grey them out instead.
+   */
+  disableUnavailableLocalBodies?: boolean;
+  /**
+   * Default `true`: selecting a local body that has no published boundary
+   * (block / district panchayats) shows its summary popup anchored at the
+   * district centre instead of doing nothing.
+   */
+  showSummaryForUnmappedBodies?: boolean;
   /** Selection highlight colour (alliance colour coding is never applied). */
   highlightColor?: string;
   /**
@@ -87,9 +103,15 @@ export interface KeralaMapRef {
   selectDistrict(district: string): Promise<boolean>;
   /**
    * Resolves `false` when the local body has no geometry in the district's
-   * local-body GeoJSON (e.g. block / district panchayats).
+   * local-body GeoJSON (e.g. block / district panchayats). Its summary is
+   * still shown unless `showSummaryForUnmappedBodies` is off.
    */
   selectLocalBody(secKeralaCode: string): Promise<boolean>;
+  /**
+   * Show a local body's details without needing boundary geometry.
+   * Resolves `false` for an unknown code.
+   */
+  selectLocalBodySummary(secKeralaCode: string): boolean;
   /** `sec_kerala_code`s with geometry for a district, or `null` if still loading. */
   getAvailableLocalBodyCodes(district: string): string[] | null;
   /** Classify a coordinate within the loaded district; `null` if outside or no data. */
@@ -117,6 +139,12 @@ export interface KeralaMapControllerOptions {
   highlightColor?: string;
   /** Opt-in electoral data in the built-in popups (default `false`). */
   showElectionResults?: boolean;
+  /**
+   * Default `true`: selecting a local body that has no published boundary
+   * (block / district panchayats) shows its summary on the map anchored at the
+   * district centre instead of doing nothing.
+   */
+  showSummaryForUnmappedBodies?: boolean;
   popupRenderer?: KeralaMapProps['popupRenderer'];
   mapOptions?: L.MapOptions;
   onSelectionChange?: (selection: MapSelection) => void;
@@ -149,7 +177,17 @@ export interface KeralaMapController {
   goBack(): void;
   search(query: string): void;
   selectDistrictByName(district: string): Promise<boolean>;
+  /**
+   * Resolves `false` when the local body has no geometry in the district's
+   * local-body GeoJSON (block / district panchayats). Its summary is still
+   * shown unless `showSummaryForUnmappedBodies` is off.
+   */
   selectLocalBodyByCode(secKeralaCode: string): Promise<boolean>;
+  /**
+   * Show a local body's details without needing boundary geometry.
+   * Resolves `false` for an unknown code.
+   */
+  selectLocalBodySummary(secKeralaCode: string): boolean;
   /** Classify a coordinate within the loaded district; `null` if outside or no data. */
   findDivisionForPointCode(lng: number, lat: number): string | null;
   /** Feature at a coordinate within the loaded district, or `null`. */

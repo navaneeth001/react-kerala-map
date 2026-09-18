@@ -1,17 +1,17 @@
 {
   "name": "react-kerala-map",
-    "version": "0.3.0",
+  "version": "0.5.1",
   "description": "Interactive React map of Kerala for exploring districts, local bodies, wards and constituencies (Lok Sabha / State Assembly) with search. Party/alliance colouring is intentionally excluded; electoral results and constituency data are opt-in via showElectionResults.",
   "license": "MIT",
   "author": "Gokul Nair",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gvnair/Kerala_Representative_Map.git",
+    "url": "git+https://github.com/navaneeth001/react-kerala-map.git",
     "directory": "react-kerala-map"
   },
-  "homepage": "https://github.com/gvnair/Kerala_Representative_Map/tree/main/react-kerala-map#readme",
+  "homepage": "https://github.com/navaneeth001/react-kerala-map/tree/main/react-kerala-map#readme",
   "bugs": {
-    "url": "https://github.com/gvnair/Kerala_Representative_Map/issues"
+    "url": "https://github.com/navaneeth001/react-kerala-map/issues"
   },
   "type": "module",
   "main": "dist/index.umd.js",
@@ -28,6 +28,7 @@
   },
   "files": [
     "dist",
+    "docs",
     "index.d.ts",
     "README.md"
   ],
@@ -35,6 +36,7 @@
     "dev": "vite --config vite.config.example.mjs",
     "build": "vite build --config vite.config.mjs",
     "build:example": "vite build example --config vite.config.example.mjs",
+    "serve:data": "node scripts/serve-data.mjs",
     "test:e2e": "node scripts/e2e-browser-test.mjs",
     "prepublishOnly": "npm run build"
   },

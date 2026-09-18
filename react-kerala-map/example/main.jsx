@@ -17,6 +17,16 @@ const dataBaseUrl = params.get('data') || undefined;
 //   http://localhost:5174/?electionResults=1
 const showElectionResults = params.get('electionResults') === '1';
 
+// Optional strict modes for the local bodies Kerala publishes no boundaries
+// for (block panchayats, the district panchayat):
+//   ?disableUnmapped=1  grey them out instead of listing them selectable
+//   ?noSummary=1        skip the summary popup for them (silent no-op)
+const disableUnavailableLocalBodies = params.get('disableUnmapped') === '1';
+const showSummaryForUnmappedBodies = params.get('noSummary') !== '1';
+//   ?noAvailability=1   drop the "(no map data)" suffix, so the option labels
+//                       read exactly like the original project's dropdowns
+const showDataAvailability = params.get('noAvailability') !== '1';
+
 // Handy for manual debugging and for the end-to-end test: the built-in popup
 // builders, so their output can be inspected with and without the flag.
 window.keralaMapPopups = {
@@ -35,6 +45,9 @@ function App() {
         ref={mapRef}
         dataBaseUrl={dataBaseUrl}
         showElectionResults={showElectionResults}
+        disableUnavailableLocalBodies={disableUnavailableLocalBodies}
+        showSummaryForUnmappedBodies={showSummaryForUnmappedBodies}
+        showDataAvailability={showDataAvailability}
         onSelectionChange={(selection) => console.log('[kerala-map] selection:', selection)}
         onReady={({ lookup }) => {
           console.log(

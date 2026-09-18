@@ -241,18 +241,24 @@ check(
 const typeOptions = await page.$$eval('#klm-desktop-type option', (options) =>
   options.map((o) => ({ value: o.value, label: o.textContent, disabled: o.disabled }))
 );
-const usableTypes = typeOptions.filter((o) => o.value && !o.disabled).map((o) => o.value);
-const deadTypes = typeOptions.filter((o) => o.value && o.disabled).map((o) => o.value);
+// Every type the lookup carries for the district must be listed — including the
+// ones Kerala publishes no boundaries for — exactly like the original project.
+const allTypes = typeOptions.filter((o) => o.value).map((o) => o.value);
+const unmappedTypes = typeOptions
+  .filter((o) => o.value && o.label.includes('(no map data)'))
+  .map((o) => o.value);
+const disabledTypes = typeOptions.filter((o) => o.value && o.disabled).map((o) => o.value);
 check(
-  'mappable types offered in hierarchical order',
-  usableTypes.join(',') === 'Grama Panchayat,Municipality,Municipal Corporation',
-  usableTypes.join(' / ')
+  'every district type is listed, in hierarchical order',
+  allTypes.join(',') ===
+    'District Panchayat,Block Panchayat,Grama Panchayat,Municipality,Municipal Corporation',
+  allTypes.join(' / ')
 );
 check(
-  'block + district panchayats disabled & labelled',
-  deadTypes.join(',') === 'District Panchayat,Block Panchayat' &&
-    typeOptions.filter((o) => o.disabled).every((o) => o.label.includes('(no map data)')),
-  `disabled=${deadTypes.join(' / ')}`
+  'unmapped types labelled "(no map data)" but still selectable',
+  unmappedTypes.join(',') === 'District Panchayat,Block Panchayat' &&
+    disabledTypes.length === 0,
+  `labelled=${unmappedTypes.join(' / ')} disabled=${disabledTypes.join(' / ') || '(none)'}`
 );
 
 // ----------------------------------------------------------------------- type
@@ -329,6 +335,93 @@ if (wardReached) {
     JSON.stringify((lastEvent() || {}).level)
   );
 }
+
+// ------------------------- local bodies without published boundaries
+// Kerala ships summary data (and ward results) for block panchayats and the
+// district panchayat, but no boundary geometry. Every such entry must still be
+// listed and selectable, and selecting one must show its summary instead of
+// silently doing nothing.
+await page.select('#klm-desktop-type', 'Block Panchayat');
+await page.waitForFunction(
+  () => {
+    const select = document.querySelector('#klm-desktop-body');
+    return select && !select.disabled && select.options.length > 1;
+  },
+  { timeout: 30000 }
+);
+const blockOptions = await page.$$eval('#klm-desktop-body option', (options) =>
+  options.map((o) => ({ value: o.value, label: o.textContent, disabled: o.disabled }))
+);
+const blockBodies = blockOptions.filter((o) => o.value);
+check(
+  'unmapped bodies are listed and selectable (14 Ernakulam blocks)',
+  blockBodies.length === 14 &&
+    blockBodies.every((o) => !o.disabled) &&
+    blockBodies.every((o) => o.label.includes('(no map data)')),
+  `${blockBodies.length} options, disabled=${blockBodies.filter((o) => o.disabled).length}`
+);
+
+const blockTarget = blockBodies.find((o) => o.value === 'B07062') || blockBodies[0];
+await page.select('#klm-desktop-body', blockTarget.value);
+await new Promise((resolve) => setTimeout(resolve, 900));
+
+const blockEvent = lastEvent() || {};
+check(
+  'unmapped body selection emits level=localBody + district',
+  blockEvent.level === 'localBody' &&
+    blockEvent.secCode === blockTarget.value &&
+    blockEvent.district === 'Ernakulam',
+  JSON.stringify({
+    level: blockEvent.level,
+    secCode: blockEvent.secCode,
+    district: blockEvent.district,
+  })
+);
+
+await page.waitForSelector('.leaflet-popup', { timeout: 20000 }).catch(() => {});
+const blockPopup = await page
+  .$eval('.leaflet-popup', (node) => node.textContent.replace(/\s+/g, ' ').trim())
+  .catch(() => '');
+check(
+  'unmapped body shows its summary popup (name / type / ward count)',
+  blockPopup.includes(blockTarget.label.split(' (')[0]) &&
+    blockPopup.includes('Block Panchayat') &&
+    /Total Wards\s*\d+/.test(blockPopup) &&
+    /District\s*Ernakulam/.test(blockPopup),
+  blockPopup.slice(0, 140)
+);
+
+const notice = await page
+  .$eval('.klm-sidebar__notice', (node) => node.textContent.replace(/\s+/g, ' ').trim())
+  .catch(() => '');
+check(
+  'sidebar explains the missing boundary inline',
+  notice.includes('no published boundary'),
+  notice || '(none)'
+);
+
+// Documented controller contract: `selectLocalBody` reports whether a polygon
+// was selected (false for unmapped bodies, even though the summary shows),
+// while `selectLocalBodySummary` reports whether the code is known at all.
+const apiResults = await page.evaluate(async () => ({
+  unmapped: await window.keralaMap.selectLocalBody('B07062'),
+  mapped: await window.keralaMap.selectLocalBody('G07052'),
+  summaryKnown: window.keralaMap.selectLocalBodySummary('D07001'),
+  summaryUnknown: window.keralaMap.selectLocalBodySummary('NOT-A-CODE'),
+}));
+check(
+  'selectLocalBody resolves false for unmapped, true for mapped',
+  apiResults.unmapped === false && apiResults.mapped === true,
+  JSON.stringify({ unmapped: apiResults.unmapped, mapped: apiResults.mapped })
+);
+check(
+  'selectLocalBodySummary handles known + unknown codes',
+  apiResults.summaryKnown === true && apiResults.summaryUnknown === false,
+  JSON.stringify({
+    known: apiResults.summaryKnown,
+    unknown: apiResults.summaryUnknown,
+  })
+);
 
 // -------------------------------------------------------------- layer switch
 await page.evaluate(() => window.keralaMap.switchToLayer('assembly'));
@@ -552,13 +645,12 @@ await page
   .catch(() => {});
 
 const mobileTypes = await page.$$eval('#klm-mobile-type option', (options) =>
-  options
-    .filter((o) => o.value && !o.disabled)
-    .map((o) => o.value)
+  options.map((o) => o.value).filter(Boolean)
 );
 check(
-  'mobile type list is geometry-filtered too (Kollam)',
-  mobileTypes.join(',') === 'Grama Panchayat,Municipality,Municipal Corporation',
+  'mobile type list carries every type too (Kollam)',
+  mobileTypes.join(',') ===
+    'District Panchayat,Block Panchayat,Grama Panchayat,Municipality,Municipal Corporation',
   mobileTypes.join(' / ')
 );
 
@@ -580,6 +672,85 @@ check(
   (await page.$eval('#klm-mobile-body', (s) => s.value)) === mobileBodies[0] &&
     (lastEvent() || {}).level === 'localBody',
   'value=' + mobileBodies[0] + ' level=' + JSON.stringify((lastEvent() || {}).level)
+);
+
+// ------------------------------------------- strict-mode props (opt-in)
+// The default keeps every district / type / body combination reachable. These
+// two props let a consumer get the stricter behaviour instead.
+await page.setViewport({ width: 1280, height: 900 });
+
+await page.goto(`${PAGE_URL}&disableUnmapped=1`, { waitUntil: 'load', timeout: 60000 });
+await page.waitForSelector('#klm-desktop-district', { timeout: 60000 });
+await page.waitForFunction(
+  () => document.querySelector('#klm-desktop-district option[value="Ernakulam"]'),
+  { timeout: 60000 }
+);
+await page.select('#klm-desktop-district', 'Ernakulam');
+await page
+  .waitForFunction(
+    () => {
+      const select = document.querySelector('#klm-desktop-type');
+      return (
+        select &&
+        !select.disabled &&
+        Array.from(select.options).some((o) => o.textContent.includes('(no map data)'))
+      );
+    },
+    { timeout: 60000 }
+  )
+  .catch(() => {});
+
+const strictTypes = await page.$$eval('#klm-desktop-type option', (options) =>
+  options
+    .filter((o) => o.value)
+    .map((o) => ({ value: o.value, label: o.textContent, disabled: o.disabled }))
+);
+const strictDisabled = strictTypes.filter((o) => o.disabled).map((o) => o.value);
+check(
+  'disableUnavailableLocalBodies greys out unmapped types',
+  strictDisabled.join(',') === 'District Panchayat,Block Panchayat' &&
+    strictTypes
+      .filter((o) => o.disabled)
+      .every((o) => o.label.includes('(no map data)')),
+  `disabled=${strictDisabled.join(' / ')}`
+);
+
+await page.goto(`${PAGE_URL}&noSummary=1`, { waitUntil: 'load', timeout: 60000 });
+await page.waitForSelector('#klm-desktop-district', { timeout: 60000 });
+await page.waitForFunction(
+  () => document.querySelector('#klm-desktop-district option[value="Ernakulam"]'),
+  { timeout: 60000 }
+);
+await page.select('#klm-desktop-district', 'Ernakulam');
+await page.waitForFunction(
+  () => {
+    const select = document.querySelector('#klm-desktop-type');
+    return select && !select.disabled && Array.from(select.options).length > 1;
+  },
+  { timeout: 60000 }
+);
+await page.select('#klm-desktop-type', 'Block Panchayat');
+await page.waitForFunction(
+  () => {
+    const select = document.querySelector('#klm-desktop-body');
+    return select && !select.disabled && select.options.length > 1;
+  },
+  { timeout: 30000 }
+);
+await page.evaluate(() => window.keralaMap.getMap().closePopup());
+await page.select('#klm-desktop-body', 'B07062');
+await new Promise((resolve) => setTimeout(resolve, 1200));
+
+const silentResult = await page.evaluate(async () => ({
+  popups: document.querySelectorAll('.leaflet-popup').length,
+  resumed: await window.keralaMap.selectLocalBody('B07062'),
+}));
+check(
+  'showSummaryForUnmappedBodies={false} makes the selection a silent no-op',
+  silentResult.popups === 0 &&
+    silentResult.resumed === false &&
+    (lastEvent() || {}).level === 'district',
+  JSON.stringify(silentResult) + ' level=' + (lastEvent() || {}).level
 );
 
 await browser.close();

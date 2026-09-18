@@ -62,6 +62,14 @@ const DEFAULT_OPTIONS = {
   onReady: null,
   onError: null,
   /**
+   * Default `true`. Block panchayats and the district panchayat ship summary
+   * and ward results but no published boundary geometry. With this on,
+   * selecting such a local body still reports the selection and shows its
+   * details on the map (anchored at the district centre) instead of doing
+   * nothing.
+   */
+  showSummaryForUnmappedBodies: true,
+  /**
    * Called after a district's local-body GeoJSON has loaded, with the list of
    * `sec_kerala_code`s that actually have geometry. Consumers can use this to
    * avoid offering selections that cannot be drawn (e.g. block/district
@@ -587,10 +595,64 @@ export function createKeralaMapController(container, userOptions = {}) {
   }
 
   /**
+   * Summary-only selection for LSGIs that have no published boundary (block
+   * panchayats and the district panchayat). There is no polygon to draw, so
+   * the district stays in view and the local body's details are shown at its
+   * centre, while the selection is reported to consumers as usual.
+   */
+  function showLocalBodySummary(info) {
+    if (!map || !info) return;
+
+    if (selectedLocalBody) {
+      selectedLocalBody.setStyle(neutralStyle());
+      selectedLocalBody = null;
+    }
+    clearWardView();
+
+    const districtFeatureLayer =
+      selectedDistrict ||
+      (districtLayer
+        ? findLayerByProperty(districtLayer, 'district', info.district)
+        : null);
+
+    const bounds =
+      districtFeatureLayer && districtFeatureLayer.getBounds
+        ? districtFeatureLayer.getBounds()
+        : null;
+    const hasBounds = !!(bounds && bounds.isValid());
+
+    if (hasBounds) {
+      map.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    L.popup()
+      .setLatLng(hasBounds ? bounds.getCenter() : map.getCenter())
+      .setContent(popupFor('localBody', info, info))
+      .openOn(map);
+
+    emit('localBody', info.district, info.sec_kerala_code, info, info);
+  }
+
+  /**
+   * Show a local body's details without needing boundary geometry, for any
+   * `sec_kerala_code` in the LSGI lookup. Resolves to `false` for an unknown
+   * code.
+   */
+  function selectLocalBodySummary(secCode) {
+    if (!secCode || !map) return false;
+    const info = lsgiLookup[secCode];
+    if (!info) return false;
+    showLocalBodySummary(info);
+    return true;
+  }
+
+  /**
    * Select a local body by its `sec_kerala_code`.
    * Resolves to false when the local body has no geometry in the district's
    * local-body GeoJSON (e.g. block/district panchayats have summary data but
-   * no published boundaries), so callers can react instead of failing silently.
+   * no published boundaries). In that case, unless
+   * `showSummaryForUnmappedBodies` is turned off, the local body's summary is
+   * shown on the map so the choice is never a silent no-op.
    */
   async function selectLocalBodyByCode(secCode) {
     if (!secCode || !map) return false;
@@ -602,7 +664,12 @@ export function createKeralaMapController(container, userOptions = {}) {
     }
 
     const match = findLayerByProperty(localBodyLayer, 'sec_kerala_code', secCode);
-    if (!match) return false;
+    if (!match) {
+      // No published boundary for this LSGI (block / district panchayats):
+      // fall back to a summary-only selection instead of doing nothing.
+      if (options.showSummaryForUnmappedBodies) showLocalBodySummary(info);
+      return false;
+    }
 
     await selectLocalBody(match.feature, match, info);
     return true;
@@ -870,11 +937,12 @@ export function createKeralaMapController(container, userOptions = {}) {
     getLocalBodyTypes,
     getLocalBodies,
     getAvailableLocalBodyCodes,
-        switchToLayer,
+    switchToLayer,
     goBack,
     search,
     selectDistrictByName,
     selectLocalBodyByCode,
+    selectLocalBodySummary,
     findDivisionForPointCode,
     findDivisionForPoint,
   };

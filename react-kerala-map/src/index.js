@@ -15,6 +15,7 @@ export {
   DEFAULT_DATA_PATHS,
   fetchDataBundle,
   fetchJson,
+  joinUrl,
   loadDistrictLocalBodies,
   loadDistrictWards,
   toDistrictFileName,
