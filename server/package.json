@@ -1,0 +1,15 @@
+{
+  "name": "kerala-civic-lookup-api",
+  "version": "0.1.0",
+  "description": "Public reverse-geocode API: coordinates -> Kerala district, local body, ward, assembly & Lok Sabha",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  }
+}
