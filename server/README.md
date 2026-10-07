@@ -89,10 +89,37 @@ Ward detail (the lowest administrative level) is always included.
 Memory stays small (~tens of MB warm per active district) since we never load
 all 14 districts' boundaries at once. Rate limit: 60 req/min per IP.
 
-## Hosting
+## Hosting (free, always-on URL)
 
-Stateless apart from the in-memory index cache — deploy anywhere Node runs:
+The included [`render.yaml`](../render.yaml) deploys this to **Render's free tier**
+in a few clicks — no Docker needed:
 
-- **Render / Railway / Fly.io**: `npm start` with `PORT` env, repo root `server/`.
-- **Docker**: `FROM node:20-slim`, copy `server/` + `data/` + `react-kerala-map/src/geoIndex.js`, run `node server.mjs`.
-- Data dir must sit at `../data` relative to `server/` (or adjust `DATA` in `geoService.mjs`).
+1. Commit + push everything (data included — it's already tracked in git):
+   ```bash
+   git add .gitignore render.yaml server/server.mjs server/README.md
+   git commit -m "chore: free Render deploy for civic lookup API"
+   git push origin main
+   ```
+2. Go to [dashboard.render.com](https://dashboard.render.com) → **New +** →
+   **Blueprint** → select your repo. Render reads `render.yaml` and creates the
+   web service (`npm install` → `npm start`, health check on `/health`).
+3. Wait ~2–3 min for the first build. Your API is then live at
+   `https://kerala-civic-lookup-api.onrender.com`:
+   ```bash
+   curl "https://kerala-civic-lookup-api.onrender.com/lookup?lat=8.822321&lng=76.648518"
+   ```
+
+Caveats of the free tier:
+
+- **Spin-down**: after ~15 min idle the service sleeps; the next request takes
+  ~30–60 s (cold start re-indexes the ~7 MB boot files). Keep it warm with a
+  free [UptimeRobot](https://uptimerobot.com) / [cron-job.org](https://cron-job.org)
+  ping to `/health` every 10 min.
+- **512 MB RAM**: fine — the server lazy-loads one district (~2–15 MB) per
+  request and caches it; it never holds all 200 MB at once.
+- **750 hrs/month**: enough for one always-on service.
+
+Alternatives: **Railway** (free trial credit, same `npm start`), **Fly.io**
+(free allowances, needs `fly launch`), **Hugging Face Spaces** (free, Docker).
+Any host works as long as the `data/` directory ships alongside `server/`
+(`DATA = join(HERE, '..', 'data')` in `geoService.mjs`).

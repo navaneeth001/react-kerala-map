@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: kerala-civic-lookup-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+    healthCheckPath: /health

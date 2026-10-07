@@ -4,12 +4,21 @@ import { createGeoService } from './geoService.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
 const app = express();
+
+// Render (and other proxies) hand us the real client IP via X-Forwarded-For.
+// Without this, express-rate-limit-style IP keys all collapse to one value.
+app.set('trust proxy', 1);
+
 app.use(cors());
 app.use(express.json());
 
 // --- simple in-memory rate limit: 60 req/min per IP ---
+// NOTE: on serverless (Vercel/Cloudflare) each isolate has its own map,
+// so this is a best-effort guard, not a global quota.
 const hits = new Map();
 app.use((req, res, next) => {
+  // Skip the platform / uptime health probes so they never eat quota.
+  if (req.path === '/health') return next();
   const now = Date.now();
   const arr = (hits.get(req.ip) || []).filter((t) => now - t < 60_000);
   arr.push(now);
@@ -17,6 +26,7 @@ app.use((req, res, next) => {
   if (arr.length > 60) return res.status(429).json({ error: 'Rate limit exceeded (60/min).' });
   next();
 });
+
 
 const geo = await createGeoService();
 console.log('Geo indexes ready.');

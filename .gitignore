@@ -2,3 +2,6 @@
 /unclean_data.DS_Store
 .DS_Store
 *.gpkg
+node_modules/
+server/node_modules/
+

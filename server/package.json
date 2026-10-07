@@ -4,6 +4,9 @@
   "description": "Public reverse-geocode API: coordinates -> Kerala district, local body, ward, assembly & Lok Sabha",
   "type": "module",
   "main": "server.mjs",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "start": "node server.mjs",
     "dev": "node --watch server.mjs"
@@ -13,3 +16,4 @@
     "cors": "^2.8.5"
   }
 }
+
